@@ -1,0 +1,90 @@
+name: Build and Push docker Image
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+concurrency:
+  group: docker-${{github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+env:
+  REGISTRY: ghcr.io
+jobs:
+  build-arch:
+    name: Build ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+            platform: linux/amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+            platform: linux/arm64
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      ref-name: ${{ steps.ref.outputs.name }}
+      repository: ${{ steps.repo.outputs.name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 7.0.1
+        with:
+          persist-credentials: false
+      - name: Determine ref name
+        id: ref
+        run: |
+          ref_name="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          # Sanitize by replacing / with - for use in tags and cache keys
+          sanitized_ref="${ref_name//\//-}"
+
+          echo "ref_name=${ref_name}"
+          echo "sanitized_ref=${sanitized_ref}"
+
+          echo "name=${sanitized_ref}" >> $GITHUB_OUTPUT
+      - name: Set repository name
+        id: repo
+        run: |
+          repo_name="${{ github.repository }}"
+          repo_name="${repo_name,,}"
+
+          echo "repository=${repo_name}"
+          echo "name=${repo_name}" >> $GITHUB_OUTPUT
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # 4.4.1
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Docker metadata
+        id: docker-meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # 6.2.0
+        with:
+          images: |
+            ${{ env.REGISTRY }}/${{steps.repo.outputs.name }}
+          tags: |
+            type=ref,event=branch
+            type=raw,value=${{ steps.ref.outputs.name }},enable=${{ github.event_name == 'pull_request' }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # 7.4.0
+        with:
+          context: .
+          file: ./Dockerfile
+          platform: ${{ matrix.platform }}
+          labels: ${{steps.docker-meta.outputs.labels }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ steps.repo.outputs.name }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: |
+            type=registry,ref=${{ env.REGISTRY }}/${{ steps.repo.outputs.name }}/cache/app:${{ steps.ref.outputs.name }}-${{ matrix.arch }}
+            type=registry,ref=${{ env.REGISTRY }}/${{ steps.repo.outputs.name }}/cache/app:dev-${{ matrix.arch }}
+          cache-to: ${{ format('type=registry,mode=max,ref={0}/{1}/cache/app:{2}-{3}', env.REGISTRY, steps.repo.outputs.name, steps.ref.outputs.name, matrix.arch) }} 
