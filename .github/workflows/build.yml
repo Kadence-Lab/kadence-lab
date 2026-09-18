@@ -13,7 +13,6 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   
-  permissions: {}
 jobs:
   build-arch:
     name: Build ${{ matrix.arch }}
