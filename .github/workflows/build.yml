@@ -40,7 +40,7 @@ jobs:
       - name: Determine ref name
         id: ref
         run: |
-          ref_name=${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}
+          ref_name="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
           # Sanitize by replacing / with - for use in tags and cache keys
           sanitized_ref="${ref_name//\//-}"
 
@@ -52,7 +52,7 @@ jobs:
         id: repo
         run: |
           repo_name="${{ github.repository }}"
-          repo_name="${repo.name,,}"
+          repo_name="${repo_name,,}"
 
           echo "repository=${repo_name}"
           echo "name=${repo_name}" >> $GITHUB_OUTPUT
