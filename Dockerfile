@@ -11,20 +11,24 @@ WORKDIR /app
 COPY ./package.json /app/
 COPY ./package-lock.json /app/
 
-RUN npm install
+RUN npm ci --only=production
 
-COPY . ./
+COPY . .
 
 RUN npm run build
 
 FROM node:${NODE_VERSION}-alpine
+
+LABEL org.opencontainers.image.source=https://github.com/Kadence-Lab/kadence-lab
+
 WORKDIR /app
 
 COPY --from=build /app/.output/ ./
 
-ENV PORT=80
+ENV NODE_ENV=production
+ENV PORT=3000
 ENV HOST=0.0.0.0
 
-EXPOSE 80
+EXPOSE 3000
 
 CMD ["node", "/app/server/index.mjs"]
