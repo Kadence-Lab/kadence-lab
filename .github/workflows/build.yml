@@ -2,7 +2,7 @@ name: Build and Push docker Image
 on:
   push:
     branches:
-      - feat/deployment-setup
+      - main
   pull_request:
     branches:
       - main
