@@ -1,4 +1,4 @@
-name: Release
+name: Build and Push docker Image
 on:
   push:
     branches:
@@ -86,5 +86,5 @@ jobs:
           outputs: type=image,name=${{ env.REGISTRY }}/${{ steps.repo.outputs.name }},push-by-digest=true,name-canonical=true,push=true
           cache-from: |
             type=registry,ref=${{ env.REGISTRY }}/${{ steps.repo.outputs.name }}/cache/app:${{ steps.ref.outputs.name }}-${{ matrix.arch }}
-            type=registry,ref=${{ env.REGISTRY }}/${{ steps.repo.outputs.name }}/cache/app:dev-${{ matrix-arch }}
+            type=registry,ref=${{ env.REGISTRY }}/${{ steps.repo.outputs.name }}/cache/app:dev-${{ matrix.arch }}
           cache-to: ${{ format('type=registry,mode=max,ref={0}/{1}/cache/app:{2}-{3}', env.REGISTRY, steps.repo.outputs.name, steps.ref.outputs.name, matrix.arch) }} 
